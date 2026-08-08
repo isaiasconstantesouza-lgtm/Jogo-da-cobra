@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🐍 Snake</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0a0a0f;--panel:#12121a;--border:#1e1e2e;
+  --green:#39ff14;--gdim:#1a7a09;--yellow:#ffd700;
+  --red:#ff3860;--purple:#a78bfa;--text:#c0c0d0;
+  --orange:#ff8c00;
+  --glow:0 0 10px #39ff14,0 0 22px #39ff14aa;
+}
+html,body{width:100%;height:100%;background:var(--bg);color:var(--text);
+  font-family:'Press Start 2P',monospace;display:flex;flex-direction:column;
+  align-items:center;overflow:hidden;touch-action:none;}
+
+/* ── SCREENS ── */
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:flex-start;
+  background:var(--bg);overflow-y:auto;z-index:10;}
+.screen.hidden{display:none;}
+
+/* ── TUTORIAL ── */
+#scr-tutorial{justify-content:center;gap:16px;padding:20px;}
+.tut-title{font-size:12px;color:var(--green);text-shadow:var(--glow);text-align:center;}
+.tut-box{background:var(--panel);border:2px solid var(--border);border-radius:10px;
+  padding:16px 20px;max-width:320px;text-align:center;}
+.tut-step{font-size:7px;color:var(--text);line-height:2.6;}
+.tut-step b{color:var(--green);}
+.tut-step .warn{color:var(--yellow);}
+.tut-prog{font-size:6px;color:var(--text);opacity:.45;margin-top:8px;}
+
+/* ── MAP ── */
+#scr-map{padding:16px 12px 24px;gap:0;}
+.map-header{width:100%;display:flex;align-items:center;justify-content:space-between;
+  padding:0 4px 14px;flex-shrink:0;}
+.map-title{font-size:10px;color:var(--green);text-shadow:var(--glow);}
+.map-sub{font-size:6px;color:var(--text);opacity:.6;text-align:right;}
+.phase-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:380px;}
+.phase-card{background:var(--panel);border:2px solid var(--border);border-radius:10px;
+  padding:12px 8px;text-align:center;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;transition:all .15s;
+  display:flex;flex-direction:column;gap:6px;align-items:center;}
+.phase-card.unlocked{border-color:#2a4a2a;}
+.phase-card.unlocked:active{border-color:var(--green);background:#0d1f0d;transform:scale(.96);}
+.phase-card.completed{border-color:var(--gdim);background:#0a1a0a;}
+.phase-card.locked{opacity:.35;cursor:default;filter:grayscale(.8);}
+.pc-icon{font-size:18px;line-height:1;}
+.pc-label{font-size:6px;color:var(--text);line-height:1.6;}
+.pc-goal{font-size:5px;color:var(--text);opacity:.55;}
+.pc-stars{font-size:10px;letter-spacing:2px;}
+.cfg-row{display:flex;justify-content:space-between;align-items:center;
+  width:100%;max-width:340px;padding:7px 4px;border-top:1px solid var(--border);margin-top:12px;}
+.cfg-label{font-size:6px;color:var(--text);}
+.tog{background:var(--panel);border:2px solid var(--border);color:var(--green);
+  font-family:'Press Start 2P',monospace;font-size:6px;padding:5px 8px;
+  border-radius:5px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.tog.on{border-color:var(--green);background:#0d2a0d;}
+.tog:active{transform:scale(.9);}
+input[type=range]{accent-color:var(--green);width:110px;}
+
+/* ── GAME ── */
+#scr-game{justify-content:flex-start;overflow:hidden;}
+#header{width:100%;display:flex;justify-content:space-between;align-items:center;
+  padding:5px 10px 4px;background:var(--panel);border-bottom:2px solid var(--border);
+  flex-shrink:0;gap:6px;}
+#g-title{font-size:8px;color:var(--green);text-shadow:var(--glow);white-space:nowrap;}
+#hud{display:flex;gap:8px;align-items:center;}
+.hi{text-align:center;}
+.hl{font-size:4px;color:var(--text);opacity:.5;display:block;margin-bottom:1px;}
+.hv{font-size:9px;color:var(--yellow);text-shadow:0 0 8px #ffd700aa;}
+.hbtn{background:var(--panel);border:2px solid var(--border);color:var(--green);
+  font-family:'Press Start 2P',monospace;font-size:8px;padding:4px 6px;
+  border-radius:5px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all .1s;}
+.hbtn:active{background:#1a2a1a;border-color:var(--green);transform:scale(.9);}
+#cw{flex:1;display:flex;align-items:center;justify-content:center;
+  width:100%;padding:3px;min-height:0;}
+canvas{display:block;border:2px solid var(--gdim);
+  box-shadow:0 0 20px #39ff1422;background:#050508;
+  image-rendering:pixelated;max-width:100%;max-height:100%;}
+#ctrl-arrows{flex-shrink:0;padding:3px 12px 8px;display:grid;
+  grid-template-columns:repeat(3,58px);grid-template-rows:repeat(2,50px);
+  gap:5px;justify-content:center;}
+#ctrl-swipe{flex-shrink:0;height:108px;display:flex;align-items:center;justify-content:center;}
+#swipe-hint{font-size:6px;color:var(--text);opacity:.35;text-align:center;line-height:2.2;}
+.btn{background:var(--panel);border:2px solid var(--border);color:var(--green);
+  font-family:'Press Start 2P',monospace;font-size:15px;border-radius:8px;cursor:pointer;
+  user-select:none;-webkit-tap-highlight-color:transparent;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .1s,border-color .1s,transform .1s;}
+.btn:active{background:#1a2a1a;border-color:var(--green);transform:scale(.9);}
+#bu{grid-column:2;grid-row:1;}#bl{grid-column:1;grid-row:2;}
+#bd{grid-column:2;grid-row:2;}#br{grid-column:3;grid-row:2;}
+
+/* ── OVERLAYS in-game ── */
+.iov{position:fixed;inset:0;background:#0a0a0fee;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;backdrop-filter:blur(5px);z-index:30;}
+.iov.hidden{display:none;}
+.iov-title{font-size:13px;color:var(--green);text-shadow:var(--glow);text-align:center;line-height:1.9;}
+.iov-sub{font-size:7px;color:var(--text);text-align:center;line-height:2.6;opacity:.9;}
+.big-btn{background:var(--green);color:#000;border:none;font-family:'Press Start 2P',monospace;
+  font-size:9px;padding:11px 22px;border-radius:6px;cursor:pointer;box-shadow:var(--glow);
+  -webkit-tap-highlight-color:transparent;transition:transform .1s;}
+.big-btn:active{transform:scale(.93);}
+.sec-btn{background:var(--panel);color:var(--green);border:2px solid var(--gdim);
+  font-family:'Press Start 2P',monospace;font-size:8px;padding:9px 18px;border-radius:6px;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .1s;}
+.sec-btn:active{transform:scale(.93);}
+#phase-card{z-index:28;}
+#pbig{font-size:18px;color:var(--purple);
+  text-shadow:0 0 20px #a78bfacc,0 0 40px #a78bfa55;text-align:center;line-height:1.8;}
+#pdesc{font-size:7px;color:var(--text);text-align:center;line-height:2.5;opacity:.88;}
+
+.scanline{position:fixed;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.07) 2px,rgba(0,0,0,.07) 4px);
+  pointer-events:none;z-index:5;}
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+
+<!-- ══════════════ TUTORIAL SCREEN ══════════════ -->
+<div class="screen" id="scr-tutorial">
+  <div class="tut-title">📖 TUTORIAL</div>
+  <div class="tut-box">
+    <div class="tut-step" id="tut-content"></div>
+    <div class="tut-prog" id="tut-prog"></div>
+  </div>
+  <button class="big-btn" id="tut-next">PRÓXIMO ▶</button>
+</div>
+
+<!-- ══════════════ MAP SCREEN ══════════════ -->
+<div class="screen hidden" id="scr-map">
+  <div class="map-header">
+    <div class="map-title">🗺️ FASES</div>
+    <div class="map-sub" id="map-sub"></div>
+  </div>
+  <div class="phase-grid" id="phase-grid"></div>
+
+  <!-- Config inline no mapa -->
+  <div class="cfg-row">
+    <span class="cfg-label">CONTROLE</span>
+    <button class="tog on" id="s-ctrl">🕹️ SETINHAS</button>
+  </div>
+  <div class="cfg-row">
+    <span class="cfg-label">MÚSICA</span>
+    <button class="tog on" id="s-music">🎵 LIGADA</button>
+  </div>
+  <div class="cfg-row">
+    <span class="cfg-label">SOM FX</span>
+    <button class="tog on" id="s-sfx">🔊 LIGADO</button>
+  </div>
+  <div class="cfg-row">
+    <span class="cfg-label">VOLUME</span>
+    <input type="range" id="s-vol" min="0" max="100" value="40">
+  </div>
+</div>
+
+<!-- ══════════════ GAME SCREEN ══════════════ -->
+<div class="screen hidden" id="scr-game">
+  <div id="header">
+    <div id="g-title">🐍 SNAKE</div>
+    <div id="hud">
+      <div class="hi"><span class="hl">FASE</span><span class="hv" id="h-phase">-</span></div>
+      <div class="hi"><span class="hl">SCORE</span><span class="hv" id="h-score">0</span></div>
+      <div class="hi"><span class="hl">🔴</span><span class="hv" id="h-food">0/0</span></div>
+      <div class="hi"><span class="hl">VIDAS</span><span class="hv" id="h-lives">❤️❤️❤️</span></div>
+      <button class="hbtn" id="btn-pause">⏸</button>
+      <button class="hbtn" id="btn-map">🗺️</button>
+    </div>
+  </div>
+  <div id="cw"><canvas id="c"></canvas></div>
+  <div id="ctrl-arrows">
+    <button class="btn" id="bu">▲</button>
+    <button class="btn" id="bl">◀</button>
+    <button class="btn" id="bd">▼</button>
+    <button class="btn" id="br">▶</button>
+  </div>
+  <div id="ctrl-swipe" style="display:none">
+    <div id="swipe-hint">DESLIZE O DEDO NA TELA PARA MOVER</div>
+  </div>
+</div>
+
+<!-- PHASE CARD OVERLAY -->
+<div class="iov hidden" id="phase-card">
+  <div id="pbig"></div>
+  <div id="pdesc"></div>
+</div>
+
+<!-- PAUSE OVERLAY -->
+<div class="iov hidden" id="pause-ov">
+  <div class="iov-title">⏸ PAUSADO</div>
+  <button class="big-btn" id="resume-btn">▶ CONTINUAR</button>
+  <button class="sec-btn" id="pause-map-btn">🗺️ IR AO MAPA</button>
+</div>
+
+<!-- RESULT OVERLAY (win/lose) -->
+<div class="iov hidden" id="result-ov">
+  <div class="iov-title" id="res-title"></div>
+  <div class="iov-sub" id="res-sub"></div>
+  <button class="big-btn" id="res-next"></button>
+  <button class="sec-btn" id="res-retry">🔄 REPETIR FASE</button>
+  <button class="sec-btn" id="res-map">🗺️ IR AO MAPA</button>
+</div>
+
+<script>
+// ═══════════════════════════════════
+//  FASES
+// ═══════════════════════════════════
+const PHASES=[
+  {n:'TUT', id:0, icon:'📖', label:'Tutorial',   foodGoal:1,  snakeSpeed:500, enemyInt:99999, enemies:0,  desc:'Bem-vindo!\nSem inimigos aqui.\nCapture 1 bolinha\npara completar!'},
+  {n:1,     id:1, icon:'🌱', label:'Fase 1',     foodGoal:1,  snakeSpeed:460, enemyInt:1400,  enemies:1,  desc:'1 bolinha para vencer\n1 inimigo apareceu!'},
+  {n:2,     id:2, icon:'🌿', label:'Fase 2',     foodGoal:2,  snakeSpeed:430, enemyInt:1250,  enemies:1,  desc:'2 bolinhas para vencer\nFique esperto!'},
+  {n:3,     id:3, icon:'🍀', label:'Fase 3',     foodGoal:3,  snakeSpeed:400, enemyInt:1100,  enemies:2,  desc:'3 bolinhas para vencer\n2 inimigos agora!'},
+  {n:4,     id:4, icon:'⚡', label:'Fase 4',     foodGoal:4,  snakeSpeed:370, enemyInt:980,   enemies:2,  desc:'4 bolinhas para vencer\nEstão mais rápidos!'},
+  {n:5,     id:5, icon:'🔥', label:'Fase 5',     foodGoal:5,  snakeSpeed:340, enemyInt:870,   enemies:3,  desc:'5 bolinhas para vencer\n3 inimigos!'},
+  {n:6,     id:6, icon:'💀', label:'Fase 6',     foodGoal:6,  snakeSpeed:310, enemyInt:760,   enemies:3,  desc:'6 bolinhas para vencer\nIsso é sério!'},
+  {n:7,     id:7, icon:'👻', label:'Fase 7',     foodGoal:8,  snakeSpeed:285, enemyInt:670,   enemies:4,  desc:'8 bolinhas para vencer\n4 inimigos famintos!'},
+  {n:8,     id:8, icon:'☠️', label:'Fase 8',     foodGoal:10, snakeSpeed:265, enemyInt:590,   enemies:5,  desc:'10 bolinhas para vencer\nQual é seu limite?'},
+  {n:9,     id:9, icon:'🌀', label:'Fase 9',     foodGoal:12, snakeSpeed:245, enemyInt:520,   enemies:5,  desc:'12 bolinhas para vencer\nPoucos chegam aqui!'},
+  {n:10,    id:10,icon:'👑', label:'Fase 10',    foodGoal:15, snakeSpeed:220, enemyInt:460,   enemies:6,  desc:'15 bolinhas para vencer\nMODO LENDA!'},
+];
+
+// ═══════════════════════════════════
+//  SAVE/LOAD
+// ═══════════════════════════════════
+function save(){
+  try{localStorage.setItem('snk_unlock',JSON.stringify(unlocked));
+      localStorage.setItem('snk_stars',JSON.stringify(stars));}catch(e){}
+}
+function load(){
+  try{
+    const u=localStorage.getItem('snk_unlock');
+    const s=localStorage.getItem('snk_stars');
+    if(u) unlocked=JSON.parse(u);
+    if(s) stars=JSON.parse(s);
+  }catch(e){}
+}
+// unlocked[id]=true se desbloqueada, stars[id]=1 se completada
+let unlocked={0:true}; // tutorial sempre desbloqueado
+let stars={};
+load();
+
+// ═══════════════════════════════════
+//  ÁUDIO
+// ═══════════════════════════════════
+let audioCtx=null,masterGain=null;
+let musicOn=true,sfxOn=true,volume=0.4;
+const MELODY=[
+  [330,.18],[392,.18],[440,.18],[494,.18],
+  [523,.36],[440,.18],[392,.18],
+  [349,.18],[392,.18],[440,.18],[392,.18],
+  [330,.36],[0,.18],[0,.18],
+  [294,.18],[330,.18],[392,.18],[440,.18],
+  [494,.36],[440,.18],[392,.18],
+  [440,.18],[392,.18],[349,.18],[330,.18],
+  [294,.54],[0,.18]
+];
+let melIdx=0,melTimer=null;
+function getAudio(){
+  if(!audioCtx){audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+  if(!masterGain){masterGain=audioCtx.createGain();masterGain.gain.value=volume;masterGain.connect(audioCtx.destination);}
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  return audioCtx;
+}
+function playNote(freq,dur,vol=.15,wave='square'){
+  if(!audioCtx||freq<=0)return;
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.type=wave;o.frequency.value=freq;
+  g.gain.setValueAtTime(vol,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur*.85);
+  o.connect(g);g.connect(masterGain);o.start();o.stop(audioCtx.currentTime+dur);
+}
+function nextMel(){
+  if(!musicOn||!audioCtx)return;
+  const[f,d]=MELODY[melIdx%MELODY.length];
+  if(f>0)playNote(f,d*1.05,.11);
+  melIdx++;melTimer=setTimeout(nextMel,d*1000);
+}
+function startMusic(){if(!musicOn)return;getAudio();clearTimeout(melTimer);melIdx=0;nextMel();}
+function stopMusic(){clearTimeout(melTimer);}
+function sfxEat(){if(!sfxOn||!audioCtx)return;playNote(660,.06,.2);setTimeout(()=>playNote(880,.08,.18),60);}
+function sfxHit(){
+  if(!sfxOn||!audioCtx)return;
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.type='sawtooth';o.frequency.setValueAtTime(200,audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(50,audioCtx.currentTime+.25);
+  g.gain.setValueAtTime(.22,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.25);
+  o.connect(g);g.connect(masterGain);o.start();o.stop(audioCtx.currentTime+.25);
+}
+function sfxWin(){if(!sfxOn||!audioCtx)return;[523,659,784,1047].forEach((f,i)=>setTimeout(()=>playNote(f,.15,.2),i*120));}
+function sfxDie(){if(!sfxOn||!audioCtx)return;[400,300,200,100].forEach((f,i)=>setTimeout(()=>playNote(f,.18,.22,'sawtooth'),i*100));}
+
+// ═══════════════════════════════════
+//  TUTORIAL
+// ═══════════════════════════════════
+const TSTEPS=[
+  {html:'Use as <b>setinhas ▲▼◀▶</b> para mover a cobra.<br><br>Ou ative o <b>modo deslizar</b> nas configurações do mapa.'},
+  {html:'Coma as <b>bolinhas vermelhas 🔴</b><br>para ganhar pontos e crescer!'},
+  {html:'Cuidado com as <b>paredes</b> e com o <b>próprio corpo</b>.<br>Se bater, perde uma vida!'},
+  {html:'Os <b>inimigos laranja 👾</b> te perseguem.<br><br><span class="warn">Só a CABEÇA da cobra leva dano!</span>'},
+  {html:'Ao levar dano você fica <b>invencível 0.5s</b>.<br>Você tem <b>3 vidas ❤️</b> por fase.'},
+  {html:'<b>Cada fase é independente!</b><br>Complete o objetivo de bolinhas<br>para desbloquear a próxima. 🍀'},
+];
+let tutStep=0;
+function showTutorial(){
+  tutStep=0;renderTut();
+  show('scr-tutorial');
+}
+function renderTut(){
+  document.getElementById('tut-content').innerHTML=TSTEPS[tutStep].html;
+  document.getElementById('tut-prog').textContent=`${tutStep+1} / ${TSTEPS.length}`;
+  document.getElementById('tut-next').textContent=tutStep<TSTEPS.length-1?'PRÓXIMO ▶':'▶ IR AO MAPA';
+}
+document.getElementById('tut-next').addEventListener('click',()=>{
+  if(tutStep<TSTEPS.length-1){tutStep++;renderTut();}
+  else showMap();
+});
+
+// ═══════════════════════════════════
+//  MAPA
+// ═══════════════════════════════════
+function showMap(){
+  stopMusic();
+  renderMap();
+  show('scr-map');
+}
+function renderMap(){
+  const grid=document.getElementById('phase-grid');
+  grid.innerHTML='';
+  const done=Object.values(stars).filter(Boolean).length;
+  document.getElementById('map-sub').textContent=`${done}/${PHASES.length} completas`;
+  PHASES.forEach(p=>{
+    const card=document.createElement('div');
+    const isUnlocked=!!unlocked[p.id];
+    const isDone=!!stars[p.id];
+    card.className='phase-card '+(isDone?'completed':isUnlocked?'unlocked':'locked');
+    card.innerHTML=`
+      <div class="pc-icon">${p.icon}</div>
+      <div class="pc-label">${p.label}</div>
+      <div class="pc-goal">${p.id===0?'Tutorial':`Meta: ${p.foodGoal}🔴`}</div>
+      <div class="pc-stars">${isDone?'⭐':'○'}</div>`;
+    if(isUnlocked){
+      card.addEventListener('click',()=>startPhase(p.id));
+    }
+    grid.appendChild(card);
+  });
+}
+
+// ═══════════════════════════════════
+//  JOGO
+// ═══════════════════════════════════
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+const CELL=18,MARGIN=2;
+let COLS,ROWS;
+let snake,dir,nextDir,inputQueue,food,enemies;
+let score,lives,foodEaten,currentPhaseId;
+let gameLoop,enemyLoop,animReq;
+let running=false,paused=false;
+let invincible=false,invTimer=null,invStart=0;
+const INV_MS=500;
+let controlMode='arrows';
+
+function currentPh(){return PHASES.find(p=>p.id===currentPhaseId);}
+
+function goFullscreen(){
+  try{const e=document.documentElement;
+    if(e.requestFullscreen)e.requestFullscreen();
+    else if(e.webkitRequestFullscreen)e.webkitRequestFullscreen();}catch(e){}
+}
+function resize(){
+  const w=document.getElementById('cw');
+  COLS=Math.floor((w.clientWidth-6)/CELL);
+  ROWS=Math.floor((w.clientHeight-6)/CELL);
+  canvas.width=COLS*CELL;canvas.height=ROWS*CELL;
+}
+
+function startPhase(id){
+  getAudio();
+  currentPhaseId=id;
+  goFullscreen();
+  show('scr-game');
+  resize();
+
+  // Reset completo da fase
+  score=0;lives=3;foodEaten=0;
+  initSnake();
+  enemies=[];
+  const p=currentPh();
+  for(let i=0;i<p.enemies;i++)spawnEnemy();
+  placeFood();
+  updateHUD();
+
+  running=true;paused=false;
+  clearInterval(gameLoop);clearInterval(enemyLoop);
+  cancelAnimationFrame(animReq);
+  gameLoop=setInterval(step,p.snakeSpeed);
+  enemyLoop=setInterval(moveEnemies,p.enemyInt);
+  startMusic();
+  animFrame();
+
+  // Card de início de fase
+  document.getElementById('pbig').textContent=p.icon+' '+p.label;
+  document.getElementById('pdesc').innerHTML=p.desc.replace(/\n/g,'<br>');
+  document.getElementById('phase-card').classList.remove('hidden');
+  paused=true;
+  setTimeout(()=>{document.getElementById('phase-card').classList.add('hidden');paused=false;},2300);
+}
+
+function updateHUD(){
+  const p=currentPh();
+  document.getElementById('h-phase').textContent=p.n;
+  document.getElementById('h-score').textContent=score;
+  document.getElementById('h-food').textContent=`${foodEaten}/${p.foodGoal}`;
+  document.getElementById('h-lives').textContent='❤️'.repeat(Math.max(0,lives));
+}
+
+function initSnake(){
+  const cx=Math.floor(COLS/2),cy=Math.floor(ROWS/2);
+  snake=[{x:cx,y:cy},{x:cx-1,y:cy},{x:cx-2,y:cy}];
+  dir={x:1,y:0};nextDir={x:1,y:0};inputQueue=[];
+}
+
+function safePos(awayHead=0){
+  let p,t=0;
+  do{p={x:MARGIN+Math.floor(Math.random()*(COLS-MARGIN*2)),
+         y:MARGIN+Math.floor(Math.random()*(ROWS-MARGIN*2))};t++;}
+  while(t<300&&(
+    snake.some(s=>s.x===p.x&&s.y===p.y)||
+    enemies.some(e=>e.x===p.x&&e.y===p.y)||
+    (food&&p.x===food.x&&p.y===food.y)||
+    (awayHead>0&&Math.abs(p.x-snake[0].x)<awayHead&&Math.abs(p.y-snake[0].y)<awayHead)
+  ));
+  return p;
+}
+function placeFood(){food=safePos(0);}
+function spawnEnemy(){
+  const ds=[{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+  const p=safePos(6);
+  enemies.push({x:p.x,y:p.y,dir:ds[Math.floor(Math.random()*4)],phase:Math.random()*Math.PI*2});
+}
+
+function queueDir(nd){
+  const last=inputQueue.length>0?inputQueue[inputQueue.length-1]:dir;
+  if(nd.x===-last.x&&nd.y===-last.y)return;
+  if(inputQueue.length>0&&inputQueue[inputQueue.length-1].x===nd.x&&inputQueue[inputQueue.length-1].y===nd.y)return;
+  if(inputQueue.length<2)inputQueue.push(nd);
+}
+
+function moveEnemies(){
+  if(!running||paused)return;
+  const ds=[{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+  enemies.forEach(e=>{
+    const r=Math.random();
+    if(r<.52){const dx=snake[0].x-e.x,dy=snake[0].y-e.y;
+      e.dir=Math.abs(dx)>Math.abs(dy)?{x:dx>0?1:-1,y:0}:{x:0,y:dy>0?1:-1};}
+    else if(r<.67)e.dir=ds[Math.floor(Math.random()*4)];
+    let nx=e.x+e.dir.x,ny=e.y+e.dir.y;
+    if(nx<0||nx>=COLS){e.dir.x*=-1;nx=e.x+e.dir.x;}
+    if(ny<0||ny>=ROWS){e.dir.y*=-1;ny=e.y+e.dir.y;}
+    e.x=Math.max(0,Math.min(COLS-1,nx));
+    e.y=Math.max(0,Math.min(ROWS-1,ny));
+    if(!invincible&&e.x===snake[0].x&&e.y===snake[0].y)hitByEnemy();
+  });
+}
+
+function hitByEnemy(){
+  if(invincible)return;
+  sfxHit();lives--;updateHUD();
+  if(lives<=0){showResult(false);return;}
+  invincible=true;invStart=Date.now();
+  clearTimeout(invTimer);
+  invTimer=setTimeout(()=>{invincible=false;},INV_MS);
+}
+
+function step(){
+  if(!running||paused)return;
+  if(inputQueue.length>0){
+    const nd=inputQueue.shift();
+    if(!(nd.x===-dir.x&&nd.y===-dir.y))dir=nd;
+  }
+  const head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+  if(head.x<0||head.x>=COLS||head.y<0||head.y>=ROWS||
+     snake.some(s=>s.x===head.x&&s.y===head.y)){showResult(false);return;}
+  snake.unshift(head);
+  if(head.x===food.x&&head.y===food.y){
+    sfxEat();
+    score+=10*(currentPhaseId+1);
+    foodEaten++;
+    updateHUD();
+    placeFood();
+    const p=currentPh();
+    if(foodEaten>=p.foodGoal){phaseComplete();return;}
+  }else{
+    snake.pop();
+  }
+  if(!invincible)enemies.forEach(e=>{if(snake[0].x===e.x&&snake[0].y===e.y)hitByEnemy();});
+}
+
+function phaseComplete(){
+  sfxWin();
+  clearInterval(gameLoop);clearInterval(enemyLoop);
+  running=false;
+  // Salva progresso
+  stars[currentPhaseId]=1;
+  const nextId=currentPhaseId+1;
+  if(nextId<PHASES.length)unlocked[nextId]=true;
+  save();
+  // Mostra resultado vitória
+  const p=currentPh();
+  const hasNext=nextId<PHASES.length;
+  document.getElementById('res-title').textContent='✅ FASE COMPLETA!';
+  document.getElementById('res-sub').innerHTML=
+    `${p.icon} ${p.label}<br>🔴 ${foodEaten}/${p.foodGoal} &nbsp;|&nbsp; SCORE: ${score}<br><br>${hasNext?'PRÓXIMA FASE DESBLOQUEADA! 🔓':'VOCÊ ZEROU O JOGO! 👑'}`;
+  const nextBtn=document.getElementById('res-next');
+  if(hasNext){nextBtn.textContent='▶ PRÓXIMA FASE';nextBtn.onclick=()=>{hideResult();startPhase(nextId);};}
+  else{nextBtn.textContent='🏆 IR AO MAPA';nextBtn.onclick=()=>{hideResult();showMap();};}
+  document.getElementById('result-ov').classList.remove('hidden');
+}
+
+function showResult(won){
+  if(won)return; // tratado em phaseComplete
+  sfxDie();
+  clearInterval(gameLoop);clearInterval(enemyLoop);
+  cancelAnimationFrame(animReq);
+  stopMusic();running=false;
+  const p=currentPh();
+  document.getElementById('res-title').textContent='💀 GAME OVER';
+  document.getElementById('res-sub').innerHTML=
+    `${p.icon} ${p.label}<br>🔴 ${foodEaten}/${p.foodGoal} &nbsp;|&nbsp; SCORE: ${score}<br><br>TENTE NOVAMENTE!`;
+  document.getElementById('res-next').textContent='';
+  document.getElementById('res-next').onclick=null;
+  document.getElementById('result-ov').classList.remove('hidden');
+}
+
+function hideResult(){document.getElementById('result-ov').classList.add('hidden');}
+
+function draw(){
+  ctx.fillStyle='#050508';ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#0d0d18';
+  for(let x=0;x<COLS;x++)for(let y=0;y<ROWS;y++)
+    ctx.fillRect(x*CELL+CELL/2-1,y*CELL+CELL/2-1,2,2);
+
+  // Food
+  ctx.shadowColor='#ff3860';ctx.shadowBlur=14;ctx.fillStyle='#ff3860';
+  ctx.beginPath();ctx.arc(food.x*CELL+CELL/2,food.y*CELL+CELL/2,CELL/2-3,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0;
+
+  // Enemies
+  const t=Date.now()/280;
+  enemies.forEach(e=>{
+    const ex=e.x*CELL,ey=e.y*CELL,pulse=.75+.25*Math.sin(t+e.phase);
+    ctx.shadowColor='#ff8c00';ctx.shadowBlur=10*pulse;
+    ctx.fillStyle=`rgba(255,${Math.floor(90+60*pulse)},0,.95)`;
+    ctx.beginPath();ctx.roundRect(ex+2,ey+2,CELL-4,CELL-4,3);ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.arc(ex+5,ey+6,2,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(ex+CELL-5,ey+6,2,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#000';
+    ctx.beginPath();ctx.arc(ex+5,ey+7,1,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(ex+CELL-5,ey+7,1,0,Math.PI*2);ctx.fill();
+  });
+
+  // Snake
+  const blink=!invincible||Math.floor((Date.now()-invStart)/80)%2===0;
+  if(blink){
+    snake.forEach((s,i)=>{
+      const x=s.x*CELL,y=s.y*CELL,br=i===0?1:Math.max(.3,1-i*.033);
+      ctx.shadowColor='#39ff14';ctx.shadowBlur=i===0?14:4;
+      ctx.fillStyle=i===0?'#39ff14':`rgba(57,255,20,${br})`;
+      const pad=i===0?1:2;
+      ctx.beginPath();ctx.roundRect(x+pad,y+pad,CELL-pad*2,CELL-pad*2,4);ctx.fill();
+    });
+    const hx=snake[0].x*CELL,hy=snake[0].y*CELL;
+    ctx.shadowBlur=0;ctx.fillStyle='#000';
+    const ex=dir.x!==0?(dir.x>0?13:3):5,ey=dir.y!==0?(dir.y>0?13:3):5;
+    const ex2=dir.x!==0?(dir.x>0?13:3):13,ey2=dir.y!==0?(dir.y>0?13:3):13;
+    ctx.beginPath();ctx.arc(hx+ex,hy+ey,2,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(hx+ex2,hy+ey2,2,0,Math.PI*2);ctx.fill();
+  }
+}
+
+function animFrame(){if(running)draw();animReq=requestAnimationFrame(animFrame);}
+
+// ── PAUSE ──
+document.getElementById('btn-pause').addEventListener('click',()=>{
+  if(!running)return;
+  paused=true;
+  document.getElementById('pause-ov').classList.remove('hidden');
+});
+document.getElementById('resume-btn').addEventListener('click',()=>{
+  document.getElementById('pause-ov').classList.add('hidden');
+  paused=false;
+});
+document.getElementById('pause-map-btn').addEventListener('click',()=>{
+  document.getElementById('pause-ov').classList.add('hidden');
+  clearInterval(gameLoop);clearInterval(enemyLoop);
+  cancelAnimationFrame(animReq);stopMusic();running=false;
+  showMap();
+});
+document.getElementById('btn-map').addEventListener('click',()=>{
+  document.getElementById('btn-pause').click();
+});
+
+// ── RESULT BUTTONS ──
+document.getElementById('res-retry').addEventListener('click',()=>{
+  hideResult();startPhase(currentPhaseId);
+});
+document.getElementById('res-map').addEventListener('click',()=>{
+  hideResult();showMap();
+});
+
+// ── SETTINGS ──
+function applyControl(){
+  const a=document.getElementById('ctrl-arrows'),s=document.getElementById('ctrl-swipe');
+  const b=document.getElementById('s-ctrl');
+  if(controlMode==='arrows'){a.style.display='';s.style.display='none';b.textContent='🕹️ SETINHAS';b.classList.add('on');}
+  else{a.style.display='none';s.style.display='';b.textContent='👆 DESLIZAR';b.classList.remove('on');}
+}
+document.getElementById('s-ctrl').addEventListener('click',()=>{
+  controlMode=controlMode==='arrows'?'swipe':'arrows';applyControl();
+});
+document.getElementById('s-music').addEventListener('click',()=>{
+  musicOn=!musicOn;
+  const b=document.getElementById('s-music');
+  b.textContent=musicOn?'🎵 LIGADA':'🔇 DESLIGADA';b.classList.toggle('on',musicOn);
+  if(musicOn&&running){getAudio();startMusic();}else stopMusic();
+});
+document.getElementById('s-sfx').addEventListener('click',()=>{
+  sfxOn=!sfxOn;
+  const b=document.getElementById('s-sfx');
+  b.textContent=sfxOn?'🔊 LIGADO':'🔇 DESLIGADO';b.classList.toggle('on',sfxOn);
+});
+document.getElementById('s-vol').addEventListener('input',e=>{
+  volume=e.target.value/100;if(masterGain)masterGain.gain.value=volume;
+});
+
+// ── INPUT ──
+document.getElementById('bu').addEventListener('click',()=>queueDir({x:0,y:-1}));
+document.getElementById('bd').addEventListener('click',()=>queueDir({x:0,y:1}));
+document.getElementById('bl').addEventListener('click',()=>queueDir({x:-1,y:0}));
+document.getElementById('br').addEventListener('click',()=>queueDir({x:1,y:0}));
+
+document.addEventListener('keydown',e=>{
+  if(e.key===' '||e.key==='p'||e.key==='P'){
+    if(running&&!paused)document.getElementById('btn-pause').click();
+    else if(paused)document.getElementById('resume-btn').click();
+    return;
+  }
+  if(!running||paused)return;
+  if(e.key==='ArrowUp')queueDir({x:0,y:-1});
+  else if(e.key==='ArrowDown')queueDir({x:0,y:1});
+  else if(e.key==='ArrowLeft')queueDir({x:-1,y:0});
+  else if(e.key==='ArrowRight')queueDir({x:1,y:0});
+});
+
+let tx=0,ty=0,tMoved=false;
+function onTouchStart(e){tx=e.touches[0].clientX;ty=e.touches[0].clientY;tMoved=false;}
+function onTouchMove(e){
+  if(tMoved||!running||paused)return;
+  const dx=e.touches[0].clientX-tx,dy=e.touches[0].clientY-ty;
+  if(Math.abs(dx)<12&&Math.abs(dy)<12)return;
+  tMoved=true;
+  if(Math.abs(dx)>Math.abs(dy))queueDir(dx>0?{x:1,y:0}:{x:-1,y:0});
+  else queueDir(dy>0?{x:0,y:1}:{x:0,y:-1});
+}
+canvas.addEventListener('touchstart',onTouchStart,{passive:true});
+canvas.addEventListener('touchmove',onTouchMove,{passive:true});
+document.body.addEventListener('touchstart',e=>{if(e.target!==canvas&&controlMode==='swipe')onTouchStart(e);},{passive:true});
+document.body.addEventListener('touchmove',e=>{if(e.target!==canvas&&controlMode==='swipe')onTouchMove(e);},{passive:true});
+
+window.addEventListener('resize',()=>{if(running){resize();draw();}});
+
+// ── HELPERS ──
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+// ── INIT ──
+applyControl();
+// Se nunca jogou, mostra tutorial; senão, vai direto ao mapa
+const hasPlayed=Object.keys(stars).length>0||Object.keys(unlocked).length>1;
+if(hasPlayed)showMap();else showTutorial();
+</script>
+</body>
+</html>
